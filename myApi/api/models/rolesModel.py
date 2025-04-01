@@ -16,7 +16,6 @@ class Rol(models.Model):
 
 class Permiso(models.Model):
     
-    nombre = models.CharField(max_length=45,null=False),
     modulo = models.CharField(max_length=45,null=False),
     accion = models.CharField(max_length=45,null=False),
     
