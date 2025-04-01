@@ -3,7 +3,7 @@
 from django.db import models;
 from .usuariosModel import Manicurista;
 
-class Horario(models.Model):
+class Novedades(models.Model):
     manicurista_id = models.ForeignKey(Manicurista,on_delete=models.CASCADE,null=False);
     Fecha = models.DateField(null=False);
     HoraEntrada = models.TimeField(null=False);
