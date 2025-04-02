@@ -7,8 +7,8 @@ class Rol(models.Model):
         ("inactivo", "inactivo"),
     );
     
-    nombre = models.CharField(max_length=60, null=False),
-    descripcion = models.CharField("No hay descripcion",max_length=80,null=True),
+    nombre = models.CharField(max_length=60, null=False, default='no ingresado')
+    descripcion = models.CharField("No hay descripcion",max_length=80,null=True)
     estado = models.CharField(max_length=8,choices=ESTADOS_CHOICES,default="activo")
     
     def __str__(self):
@@ -16,15 +16,15 @@ class Rol(models.Model):
 
 class Permiso(models.Model):
     
-    modulo = models.CharField(max_length=45,null=False),
-    accion = models.CharField(max_length=45,null=False),
+    modulo = models.CharField(max_length=45,null=False,default='')
+    accion = models.CharField(max_length=45,null=False,default='')
     
     def __str__(self):
-        return f"{self.nombre} - {self.modulo} - puede({self.accion})"
+        return f"{self.modulo} - puede({self.accion})"
     
 class Permiso_Rol(models.Model):
-    rol_id = models.ForeignKey(Rol,on_delete=models.CASCADE,),
-    permiso_id = models.ForeignKey(Permiso,on_delete=models.CASCADE),
+    rol_id = models.ForeignKey(Rol,on_delete=models.CASCADE,null=True)
+    permiso_id = models.ForeignKey(Permiso,on_delete=models.CASCADE,null=True)
     
     def __str__(self):
         return f"Rol {self.rol_id} - permiso {self.permiso_id}"

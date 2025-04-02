@@ -3,7 +3,8 @@ from django.db import models
 from datetime import date, time
 from ..models.citaventaModel import EstadoCita, Servicio, CitaVenta, ServicioCita
 from ..models.usuariosModel import Manicurista, Cliente
-
+import requests;
+import base64;
 class EstadoCitaSerializer(serializers.ModelSerializer):
     class Meta:
         model = EstadoCita
@@ -19,10 +20,12 @@ class EstadoCitaSerializer(serializers.ModelSerializer):
         return Estado
 
 class ServicioSerializer(serializers.ModelSerializer):
+    imagen_base64 = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = Servicio
         fields = '__all__'
-        
+
     def validate_nombre(self, nombre):
         if not nombre:
             raise serializers.ValidationError("El nombre es requerido")
@@ -31,14 +34,14 @@ class ServicioSerializer(serializers.ModelSerializer):
         if nombre.isdigit():
             raise serializers.ValidationError("El nombre no puede contener solo numeros")
         return nombre
-        
+
     def validate_precio(self, precio):
         if precio < 0:
             raise serializers.ValidationError("El precio no puede ser negativo")
         if not precio:
             raise serializers.ValidationError("El precio es requerido")
         return precio
-        
+
     def validate_estado(self, estado):
         estado_choices = [choice[0] for choice in Servicio.ESTADOS_CHOICES]
         if estado not in estado_choices:
@@ -46,6 +49,31 @@ class ServicioSerializer(serializers.ModelSerializer):
         if not estado:
             raise serializers.ValidationError("El estado es requerido")
         return estado
+
+    def create(self, validated_data):
+        imagen_base64 = validated_data.pop('imagen_base64', None)
+        if imagen_base64:
+            url_imagen = self._subir_imagen_imgbb(imagen_base64)
+            validated_data['url_imagen'] = url_imagen
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        imagen_base64 = validated_data.pop('imagen_base64', None)
+        if imagen_base64:
+            url_imagen = self._subir_imagen_imgbb(imagen_base64)
+            validated_data['url_imagen'] = url_imagen
+        return super().update(instance, validated_data)
+
+    def _subir_imagen_imgbb(self, imagen_base64):
+        IMGBB_API_KEY = 'fec1ba28d181c77a5801a0952fead016'  # Reemplaza con tu API key de ImgBB
+        url = "https://api.imgbb.com/1/upload"
+        payload = {
+            "key": IMGBB_API_KEY,
+            "image": imagen_base64.split(',')[1]  
+        }
+        res = requests.post(url, payload)
+        res.raise_for_status()
+        return res.json()['data']['url']
 
 class CitaVentaSerializer(serializers.ModelSerializer):
     class Meta:
