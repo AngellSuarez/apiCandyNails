@@ -16,10 +16,10 @@ from .insumoModel import Insumo, Marca
 from .comprasModel import EstadoCompra, Compra, CompraInsumo
 
 # Modelos relacionados con abastecimiento
-from .abastecimientoModel import Abastecimiento
+from .abastecimientoModel import Abastecimiento, insumoAbastecimiento;
 
 # Modelos relacionados con citas, ventas y servicios
 from .citaventaModel import EstadoCita, CitaVenta, ServicioCita
 
 # Modelos relacionados con liquidaciones y horarios
-from .liqHorModel import Horario, Liquidacion
+from .liqHorModel import Novedades, Liquidacion
