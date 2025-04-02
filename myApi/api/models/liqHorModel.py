@@ -11,7 +11,7 @@ class Novedades(models.Model):
     Motivo = models.TextField()
     
     def __str__(self):
-        return f"{self.manicurista_id} - {self.Fecha} - {self.HoraEntrada} - {self.HoraSalida} - {self.Motivo}";
+        return f" {self.Fecha} - {self.HoraEntrada} - {self.HoraSalida} - {self.Motivo}";
     
     
 class Liquidacion(models.Model):

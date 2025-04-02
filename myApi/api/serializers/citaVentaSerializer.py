@@ -5,6 +5,7 @@ from ..models.citaventaModel import EstadoCita, Servicio, CitaVenta, ServicioCit
 from ..models.usuariosModel import Manicurista, Cliente
 import requests;
 import base64;
+import os;
 class EstadoCitaSerializer(serializers.ModelSerializer):
     class Meta:
         model = EstadoCita
@@ -20,7 +21,7 @@ class EstadoCitaSerializer(serializers.ModelSerializer):
         return Estado
 
 class ServicioSerializer(serializers.ModelSerializer):
-    imagen_base64 = serializers.CharField(write_only=True, required=False)
+    imagen = serializers.ImageField(write_only=True, required=False)  # Campo para recibir la imagen como archivo
 
     class Meta:
         model = Servicio
@@ -51,29 +52,40 @@ class ServicioSerializer(serializers.ModelSerializer):
         return estado
 
     def create(self, validated_data):
-        imagen_base64 = validated_data.pop('imagen_base64', None)
-        if imagen_base64:
-            url_imagen = self._subir_imagen_imgbb(imagen_base64)
+        imagen = validated_data.pop('imagen', None)
+        if imagen:
+            url_imagen = self._subir_imagen_imgbb(imagen)
             validated_data['url_imagen'] = url_imagen
+        else:
+            validated_data['url_imagen'] = "https://example.com/default-image.jpg"  # URL por defecto
+
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        imagen_base64 = validated_data.pop('imagen_base64', None)
-        if imagen_base64:
-            url_imagen = self._subir_imagen_imgbb(imagen_base64)
+        imagen = validated_data.pop('imagen', None)
+        if imagen:
+            url_imagen = self._subir_imagen_imgbb(imagen)
             validated_data['url_imagen'] = url_imagen
         return super().update(instance, validated_data)
 
-    def _subir_imagen_imgbb(self, imagen_base64):
-        IMGBB_API_KEY = 'fec1ba28d181c77a5801a0952fead016'  # Reemplaza con tu API key de ImgBB
+    def _subir_imagen_imgbb(self, imagen):
+        """Sube la imagen a ImgBB y devuelve la URL de la imagen."""
+        IMGBB_API_KEY = "fec1ba28d181c77a5801a0952fead016"
+        if not IMGBB_API_KEY:
+            return "https://example.com/default-image.jpg"  # Retorna imagen por defecto si no hay API Key
+
         url = "https://api.imgbb.com/1/upload"
-        payload = {
-            "key": IMGBB_API_KEY,
-            "image": imagen_base64.split(',')[1]  
-        }
-        res = requests.post(url, payload)
-        res.raise_for_status()
-        return res.json()['data']['url']
+        files = {"image": imagen}  # Subir archivo directamente
+        payload = {"key": IMGBB_API_KEY}
+
+        try:
+            res = requests.post(url, files=files, data=payload)
+            res.raise_for_status()
+            response_json = res.json()
+            return response_json.get('data', {}).get('url', "https://example.com/default-image.jpg")
+        except requests.exceptions.RequestException:
+            return "https://example.com/default-image.jpg"  # En caso de error, usar imagen por defecto
+
 
 class CitaVentaSerializer(serializers.ModelSerializer):
     class Meta:

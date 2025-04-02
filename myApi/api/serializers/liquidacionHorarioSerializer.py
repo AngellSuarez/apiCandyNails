@@ -7,51 +7,46 @@ from ..models.citaventaModel import CitaVenta;
 
 class NovedadesSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Novedades;
+        model = Novedades
         fields = '__all__'
-        #fields = ['id','Fecha','HoraEntrada','HoraSalida'];
+
+    # Validar la fecha
+    def validate_Fecha(self, value):
+        max_fecha = date.today() + timedelta(days=7)
+        if value > max_fecha:
+            raise serializers.ValidationError("La fecha no puede superar 7 días desde hoy.")
+        return value
+
+    # Validar la hora de entrada
+    def validate_HoraEntrada(self, value):
+        hora_entrada_minima = time(8, 0)  # 8:00 AM
+        hora_salida_maxima = time(18, 0)  # 6:00 PM
         
-        def validate_manicurista_id(self,manicurista_id):
-            try:
-                Manicurista.objects.get(id=manicurista_id);
-            except Manicurista.DoesNotExist:
-                raise serializers.ValidationError("El manicurista no existe");
-            if not manicurista_id:
-                raise serializers.ValidationError("El manicurista es requerido");
-            return manicurista_id;
+        if value < hora_entrada_minima or value > hora_salida_maxima:
+            raise serializers.ValidationError("La hora de entrada debe estar entre las 8:00 AM y las 6:00 PM.")
         
-        #validar fechas
-        def validate_fecha(self,data):
-            if 'Fecha' in data:
-                max_fecha = date.today() + timedelta(days=7);
-                if data['Fecha'] < max_fecha:
-                    raise serializers.ValidationError("La fecha no puede superar 7 días desde hoy")
-            
-            #ver si hay mas de una novedad con esa fecha para el manicurista
-            if all(k in data for k in ('manicurista_id','Fecha')):
-                novedades_existentes = Novedades.objects.filter(
-                    manicurista_id = data['manicurista_id'],
-                    Fecha = data['Fecha'],
-                );
-                if self.intance:
-                    novedades_existentes = novedades_existentes.exclude(id=self.instance.id);
-                if novedades_existentes.exists():
-                    raise serializers.ValidationError({"non_filed_errors": "El manicurista ya tiene una novedad en esa fecha"});
-            return data
+        return value
+
+    # Validar la hora de salida
+    def validate_HoraSalida(self, value):
+        hora_entrada_minima = time(8, 0)  # 8:00 AM
+        hora_salida_maxima = time(18, 0)  # 6:00 PM
         
-        #validate horas
-        def validate_hora(self,data):
-            hora_entrada_minima = time(8,0); #8 am
-            hora_salida_maxima = time(18,0) #6pm
-            
-            if 'HoraEntrada' in data:
-                if data['HoraEntrada'] < hora_entrada_minima or data['HoraEntrada'] > hora_salida_maxima:
-                    raise serializers.ValidationError({"Hora: " "La hora de entrada debe ser entre las 8:00am y las 6:00pm"});
-            
-            if 'HoraSalida' in data:
-                if data['HoraSalida'] < hora_entrada_minima or data['HoraSalida'] > hora_salida_maxima:
-                    raise serializers.ValidationError({"Hora: " "La hora de salida debe estar entre las 8:00am y las 6:00pm"});
-            return data;
+        if value < hora_entrada_minima or value > hora_salida_maxima:
+            raise serializers.ValidationError("La hora de salida debe estar entre las 8:00 AM y las 6:00 PM.")
+        
+        return value
+
+    # Validar que la hora de salida sea después de la entrada
+    def validate(self, data):
+        hora_entrada = data.get("HoraEntrada")
+        hora_salida = data.get("HoraSalida")
+
+        if hora_entrada and hora_salida:
+            if hora_salida <= hora_entrada:
+                raise serializers.ValidationError("La hora de salida debe ser posterior a la hora de entrada.")
+        
+        return data
 
 class LiquidacionSerializer(serializers.ModelSerializer):
     class Meta:

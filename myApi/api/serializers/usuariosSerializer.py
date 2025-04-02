@@ -129,88 +129,107 @@ class ClienteSerializer(serializers.ModelSerializer):
         username = validated_data.pop('username')
         password = validated_data.pop('password')
         rol_id = validated_data.pop('rol_id')
-
-        user = Usuario.objects.create_user(username=username, password=password, rol_id=rol_id)
-        cliente = Cliente.objects.create(usuario=user, **validated_data)
+    
+        # Extract email value to use for both Usuario and Manicurista
+        correo = validated_data.get('correo')
+    
+        # Create usuario with email
+        usuario = Usuario.objects.create_user(
+            username=username, 
+            password=password, 
+            rol_id=rol_id,
+            correo=correo,  # Add the email here
+            nombre=validated_data.get('nombre', ''),  # Also add name fields
+            apellido=validated_data.get('apellido', '')
+    )
+    
+        cliente = Cliente.objects.create(usuario=usuario, **validated_data)
         return cliente
         
 ##manicuristas
 class ManicuristaSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
-    rol_id = serializers.PrimaryKeyRelatedField(queryset=Rol.objects.all())
-    
-    #constructor
-    class Meta:
-        model = Manicurista;
-        fields = ['id','username','password','nombre','apellido','tipo_documento','numero_documento','correo','celular','estado','fecha_nacimiento','fecha_contratacion','rol_id'];
-        
-        #validar el estado
-        def validate_estado(self,estado):
-            estados_validos =[choice[0] for choice in Manicurista.ESTADOS_CHOICES];
-            if estado not in estados_validos:
-                raise serializers.ValidationError(f"Estado no valido, las opciones son: {estados_validos}");
-            return estado;
-        
-        #validar el tipo de documento
-        def validate_tipo_documento(self,tipo):
-            tipos_validos = [choice[0] for choice in Manicurista.TIPO_DOCUMENTO_CHOICES];
-            if tipo not in tipos_validos:
-                raise serializers.ValidationError(f"Tipo de documento no valido, las opciones son: {tipos_validos}");
-            
-            if not tipo:
-                raise serializers.ValidationError("El tipo no puede estar vacio");
-            return tipo;
-        
-        def validate_numero_documento(self,numero_documento):
-            if Manicurista.objects.filter(numero_documento = numero_documento).exists():
-                raise serializers.ValidationError("El numero de documento ya existe");
-            if not numero_documento:
-                raise serializers.ValidationError("El numero de documento no puede estar vacio");
-            return numero_documento;
-        
-        #verificar si el correo no esta creado con otra persona
-        def validate_correo(self,correo):
-            if Manicurista.objects.filter(correo=correo).exists():
-                raise serializers.ValidationError("El correo ya existe");
-            if not correo:
-                raise serializers.ValidationError("El correo no puede estar vacio");
-            return correo;
-        
-        def validate_celular(self,celular):
-            if Manicurista.objects.filter(celular=celular).exists():
-                raise serializers.ValidationError("El celular ya esta registrado");
-            return celular;
-        
-        def validate_nombre(self,nombre):
-            if not nombre:
-                raise serializers.ValidationError("El nombre no puede estar en blanco");
-            if len(nombre) < 3:
-                raise serializers.ValidationError("El nombre no puede tener menos de 3 letras");
-            if nombre.isdigit():
-                raise serializers.ValidationError("El nombre no puede ser solo numeros");
-            return nombre;
-        
-        def validate_apellido(self,apellido):
-            if not apellido:
-                raise serializers.ValidationError("El apellido no puede estar vacio");
-            if len(apellido) < 3 :
-                raise serializers.ValidationError("El apellido no puede tener menos de 3 letras");
-            if apellido.isdigit():
-                raise serializers.ValidationError("El apellido no puede ser solo numeros");
-            return apellido;
-        
-        def validate_fecha(self,data):
-            if 'fecha_contratacion' in data and 'fecha_nacimiento' in data:
-                if data['fecha_contratacion'] < data['fecha_nacimiento']:
-                    raise serializers.ValidationError("La fecha de contrato no debe ser menor a la fecha de nacimiento")
-            return data;
-        
-        def create(self, validated_data):
-            username = validated_data.pop('username')
-            password = validated_data.pop('password')
-            rol_id = validated_data.pop('rol_id')
+    rol_id = serializers.PrimaryKeyRelatedField(queryset=Rol.objects.all(), write_only=True) #rol_id solo para escritura
 
-            user = Usuario.objects.create_user(username=username, password=password, rol_id=rol_id)
-            manicurista = Manicurista.objects.create(usuario=user, **validated_data)
-            return manicurista
+    class Meta:
+        model = Manicurista
+        fields = ['username', 'password', 'nombre', 'apellido', 'tipo_documento', 'numero_documento', 'correo', 'celular', 'estado', 'fecha_nacimiento', 'fecha_contratacion', 'rol_id']
+
+    def validate_estado(self, estado):
+        estados_validos = [choice[0] for choice in Manicurista.ESTADOS_CHOICES]
+        if estado not in estados_validos:
+            raise serializers.ValidationError(f"Estado no valido, las opciones son: {estados_validos}")
+        return estado
+
+    def validate_tipo_documento(self, tipo):
+        tipos_validos = [choice[0] for choice in Manicurista.TIPO_DOCUMENTO_CHOICES]
+        if tipo not in tipos_validos:
+            raise serializers.ValidationError(f"Tipo de documento no valido, las opciones son: {tipos_validos}")
+        if not tipo:
+            raise serializers.ValidationError("El tipo no puede estar vacio")
+        return tipo
+
+    def validate_numero_documento(self, numero_documento):
+        if Manicurista.objects.filter(numero_documento=numero_documento).exists():
+            raise serializers.ValidationError("El numero de documento ya existe")
+        if not numero_documento:
+            raise serializers.ValidationError("El numero de documento no puede estar vacio")
+        return numero_documento
+
+    def validate_correo(self, correo):
+        if Usuario.objects.filter(correo=correo).exists():
+            raise serializers.ValidationError("El correo ya existe")
+        if not correo:
+            raise serializers.ValidationError("El correo no puede estar vacio")
+        return correo
+
+    def validate_celular(self, celular):
+        if Manicurista.objects.filter(celular=celular).exists():
+            raise serializers.ValidationError("El celular ya esta registrado")
+        return celular
+
+    def validate_nombre(self, nombre):
+        if not nombre:
+            raise serializers.ValidationError("El nombre no puede estar en blanco")
+        if len(nombre) < 3:
+            raise serializers.ValidationError("El nombre no puede tener menos de 3 letras")
+        if nombre.isdigit():
+            raise serializers.ValidationError("El nombre no puede ser solo numeros")
+        return nombre
+
+    def validate_apellido(self, apellido):
+        if not apellido:
+            raise serializers.ValidationError("El apellido no puede estar vacio")
+        if len(apellido) < 3:
+            raise serializers.ValidationError("El apellido no puede tener menos de 3 letras")
+        if apellido.isdigit():
+            raise serializers.ValidationError("El apellido no puede ser solo numeros")
+        return apellido
+
+    def validate_fecha(self, data):
+        if 'fecha_contratacion' in data and 'fecha_nacimiento' in data:
+            if data['fecha_contratacion'] < data['fecha_nacimiento']:
+                raise serializers.ValidationError("La fecha de contrato no debe ser menor a la fecha de nacimiento")
+        return data
+
+    def create(self, validated_data):
+        username = validated_data.pop('username')
+        password = validated_data.pop('password')
+        rol_id = validated_data.pop('rol_id')
+    
+        # Extract email value to use for both Usuario and Manicurista
+        correo = validated_data.get('correo')
+    
+        # Create usuario with email
+        usuario = Usuario.objects.create_user(
+            username=username, 
+            password=password, 
+            rol_id=rol_id,
+            correo=correo,  # Add the email here
+            nombre=validated_data.get('nombre', ''),  # Also add name fields
+            apellido=validated_data.get('apellido', '')
+    )
+    
+        manicurista = Manicurista.objects.create(usuario=usuario, **validated_data)
+        return manicurista
