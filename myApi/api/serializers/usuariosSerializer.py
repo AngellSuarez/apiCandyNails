@@ -71,78 +71,102 @@ class ClienteSerializer(serializers.ModelSerializer):
     rol_id = serializers.PrimaryKeyRelatedField(queryset=Rol.objects.all(), write_only=True) #Agregado rol_id
 
     class Meta:
-        model = Cliente;
-        fields = ['username','password','rol_id','nombre','apellido','tipo_documento','numero_documento','correo','celular','estado'];
+        model = Cliente
+        fields = ['username','password','rol_id','nombre','apellido','tipo_documento','numero_documento','correo','celular','estado']
 
     #validar el estado
-    def validate_estado(self,estado):
-        estados_validos =[choice[0] for choice in Cliente.ESTADOS_CHOICES];
+    def validate_estado(self, estado):
+        estados_validos = [choice[0] for choice in Cliente.ESTADOS_CHOICES]
         if estado not in estados_validos:
-            raise serializers.ValidationError(f"Estado no valido, las opciones son: {estados_validos}");
-        return estado;
+            raise serializers.ValidationError(f"Estado no valido, las opciones son: {estados_validos}")
+        return estado
 
     #validar el tipo de documento
-    def validate_tipo_documento(self,tipo_documento):
-        tipos_validos = [choice[0] for choice in Cliente.TIPO_DOCUMENTO_CHOICES];
+    def validate_tipo_documento(self, tipo_documento):
+        tipos_validos = [choice[0] for choice in Cliente.TIPO_DOCUMENTO_CHOICES]
 
         if tipo_documento not in tipos_validos:
-            raise serializers.ValidationError(f"Tipo de documento no valido, las opciones son: {tipos_validos}");
-        return tipo_documento;
+            raise serializers.ValidationError(f"Tipo de documento no valido, las opciones son: {tipos_validos}")
+        return tipo_documento
 
-    #validar numero de documento no exista
-    def validate_numero_documento(self,numero_documento):
-        if Cliente.objects.filter(numero_documento=numero_documento).exists():
-            raise serializers.ValidationError("El numero de documento ya esta registrado");
-        return numero_documento;
+    # For ClienteSerializer
+    def validate_numero_documento(self, numero_documento):
+        # Get the current instance if we're updating
+        instance = getattr(self, 'instance', None)
+        
+        # Check if this document number exists for anyone OTHER than the current instance
+        if Cliente.objects.exclude(pk=instance.pk if instance else None).filter(numero_documento=numero_documento).exists():
+            raise serializers.ValidationError("El numero de documento ya esta registrado")
+        return numero_documento
 
-    #verificar si el correo no esta creado ya
-    def validate_correo(self,correo):
-        if Cliente.objects.filter(correo=correo).exists():
-            raise serializers.ValidationError("El correo inscrito ya existe");
-        return correo;
+    def validate_correo(self, correo):
+        # Get the current instance if we're updating
+        instance = getattr(self, 'instance', None)
+        
+        # If updating, exclude the current instance's email from uniqueness check
+        usuario_id = None
+        if instance and hasattr(instance, 'usuario'):
+            usuario_id = instance.usuario.pk
+            
+        # Check if email exists in Cliente model (excluding current instance)
+        if Cliente.objects.exclude(pk=instance.pk if instance else None).filter(correo=correo).exists():
+            raise serializers.ValidationError("El correo inscrito ya existe")
+            
+        # Check if email exists in Usuario model (excluding current instance's usuario)
+        if Usuario.objects.exclude(pk=usuario_id).filter(correo=correo).exists():
+            raise serializers.ValidationError("El correo inscrito ya existe")
+            
+        return correo
 
-    #verificar si el celular no esta vinculado a algun cliente ya
-    def validate_celular(self,celular):
-        if Cliente.objects.filter(celular=celular).exists():
-            raise serializers.ValidationError("El celular inscrito ya existe");
-        return celular;
+    def validate_celular(self, celular):
+        # Get the current instance if we're updating
+        instance = getattr(self, 'instance', None)
+        
+        # If updating, exclude the current instance's phone from uniqueness check
+        if Cliente.objects.exclude(pk=instance.pk if instance else None).filter(celular=celular).exists():
+            raise serializers.ValidationError("El celular inscrito ya existe")
+        return celular
 
-    def validate_nombre(self,nombre):
+    def validate_nombre(self, nombre):
         if not nombre:
-            raise serializers.ValidationError("El nombre no puede estar en blanco");
+            raise serializers.ValidationError("El nombre no puede estar en blanco")
         if len(nombre) < 3:
-            raise serializers.ValidationError("El nombre debe tener al menos 3 caracteres");
+            raise serializers.ValidationError("El nombre debe tener al menos 3 caracteres")
         if nombre.isdigit():
-            raise serializers.ValidationError("El nombre no puede ser solo numeros");
-        return nombre;
+            raise serializers.ValidationError("El nombre no puede ser solo numeros")
+        return nombre
 
-    def validate_apellido(self,apellido):
+    def validate_apellido(self, apellido):
         if not apellido:
-            raise serializers.ValidationError("El apellido no puede estar en blanco");
+            raise serializers.ValidationError("El apellido no puede estar en blanco")
         if len(apellido) < 3:
-            raise serializers.ValidationError("El apellido debe tener al menos 3 caracteres");
+            raise serializers.ValidationError("El apellido debe tener al menos 3 caracteres")
         if apellido.isdigit():
-            raise serializers.ValidationError("El apellido no puede ser solo numeros");
-        return apellido;
+            raise serializers.ValidationError("El apellido no puede ser solo numeros")
+        return apellido
 
     def create(self, validated_data):
+        # Extract fields that don't belong to Cliente model
         username = validated_data.pop('username')
         password = validated_data.pop('password')
         rol_id = validated_data.pop('rol_id')
-    
-        # Extract email value to use for both Usuario and Manicurista
+        
+        # Extract email value to use for both Usuario and Cliente
         correo = validated_data.get('correo')
-    
+        nombre = validated_data.get('nombre', '')
+        apellido = validated_data.get('apellido', '')
+        
         # Create usuario with email
         usuario = Usuario.objects.create_user(
             username=username, 
             password=password, 
             rol_id=rol_id,
-            correo=correo,  # Add the email here
-            nombre=validated_data.get('nombre', ''),  # Also add name fields
-            apellido=validated_data.get('apellido', '')
-    )
-    
+            correo=correo,
+            nombre=nombre,
+            apellido=apellido
+        )
+        
+        # Now create the Cliente instance with the usuario relation
         cliente = Cliente.objects.create(usuario=usuario, **validated_data)
         return cliente
         
@@ -171,21 +195,37 @@ class ManicuristaSerializer(serializers.ModelSerializer):
         return tipo
 
     def validate_numero_documento(self, numero_documento):
-        if Manicurista.objects.filter(numero_documento=numero_documento).exists():
+        # Get the current instance if we're updating
+        instance = getattr(self, 'instance', None)
+        
+        # If updating, exclude the current instance from uniqueness check
+        if Manicurista.objects.exclude(pk=instance.pk if instance else None).filter(numero_documento=numero_documento).exists():
             raise serializers.ValidationError("El numero de documento ya existe")
         if not numero_documento:
             raise serializers.ValidationError("El numero de documento no puede estar vacio")
         return numero_documento
 
     def validate_correo(self, correo):
-        if Usuario.objects.filter(correo=correo).exists():
+        # Get the current instance if we're updating
+        instance = getattr(self, 'instance', None)
+        
+        # If updating, exclude the current instance's email from uniqueness check
+        usuario_id = None
+        if instance and hasattr(instance, 'usuario'):
+            usuario_id = instance.usuario.pk
+            
+        if Usuario.objects.exclude(pk=usuario_id).filter(correo=correo).exists():
             raise serializers.ValidationError("El correo ya existe")
         if not correo:
             raise serializers.ValidationError("El correo no puede estar vacio")
         return correo
 
     def validate_celular(self, celular):
-        if Manicurista.objects.filter(celular=celular).exists():
+        # Get the current instance if we're updating
+        instance = getattr(self, 'instance', None)
+        
+        # If updating, exclude the current instance's phone from uniqueness check
+        if Manicurista.objects.exclude(pk=instance.pk if instance else None).filter(celular=celular).exists():
             raise serializers.ValidationError("El celular ya esta registrado")
         return celular
 
@@ -207,29 +247,34 @@ class ManicuristaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El apellido no puede ser solo numeros")
         return apellido
 
-    def validate_fecha(self, data):
+    def validate(self, data):
+        # This method validates fields that depend on each other
         if 'fecha_contratacion' in data and 'fecha_nacimiento' in data:
             if data['fecha_contratacion'] < data['fecha_nacimiento']:
                 raise serializers.ValidationError("La fecha de contrato no debe ser menor a la fecha de nacimiento")
         return data
 
     def create(self, validated_data):
+        # Extract fields that don't belong to Manicurista model
         username = validated_data.pop('username')
         password = validated_data.pop('password')
         rol_id = validated_data.pop('rol_id')
-    
-        # Extract email value to use for both Usuario and Manicurista
+        
+        # Extract common fields to use for both Usuario and Manicurista
         correo = validated_data.get('correo')
-    
-        # Create usuario with email
+        nombre = validated_data.get('nombre', '')
+        apellido = validated_data.get('apellido', '')
+        
+        # Create usuario with extracted data
         usuario = Usuario.objects.create_user(
             username=username, 
             password=password, 
             rol_id=rol_id,
-            correo=correo,  # Add the email here
-            nombre=validated_data.get('nombre', ''),  # Also add name fields
-            apellido=validated_data.get('apellido', '')
-    )
-    
+            correo=correo,
+            nombre=nombre,
+            apellido=apellido
+        )
+        
+        # Now create the Manicurista instance with the usuario relation
         manicurista = Manicurista.objects.create(usuario=usuario, **validated_data)
         return manicurista

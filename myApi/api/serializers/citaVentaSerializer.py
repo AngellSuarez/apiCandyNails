@@ -57,7 +57,7 @@ class ServicioSerializer(serializers.ModelSerializer):
             url_imagen = self._subir_imagen_imgbb(imagen)
             validated_data['url_imagen'] = url_imagen
         else:
-            validated_data['url_imagen'] = "https://example.com/default-image.jpg"  # URL por defecto
+            validated_data['url_imagen'] = "https://ibb.co/zWhfbh8D"  # URL por defecto
 
         return super().create(validated_data)
 
@@ -72,7 +72,7 @@ class ServicioSerializer(serializers.ModelSerializer):
         """Sube la imagen a ImgBB y devuelve la URL de la imagen."""
         IMGBB_API_KEY = "fec1ba28d181c77a5801a0952fead016"
         if not IMGBB_API_KEY:
-            return "https://example.com/default-image.jpg"  # Retorna imagen por defecto si no hay API Key
+            return "https://ibb.co/zWhfbh8D"  # Retorna imagen por defecto si no hay API Key
 
         url = "https://api.imgbb.com/1/upload"
         files = {"image": imagen}  # Subir archivo directamente
@@ -82,9 +82,9 @@ class ServicioSerializer(serializers.ModelSerializer):
             res = requests.post(url, files=files, data=payload)
             res.raise_for_status()
             response_json = res.json()
-            return response_json.get('data', {}).get('url', "https://example.com/default-image.jpg")
+            return response_json.get('data', {}).get('url', "https://ibb.co/zWhfbh8D")
         except requests.exceptions.RequestException:
-            return "https://example.com/default-image.jpg"  # En caso de error, usar imagen por defecto
+            return "https://ibb.co/zWhfbh8D"  # En caso de error, usar imagen por defecto
 
 
 class CitaVentaSerializer(serializers.ModelSerializer):
@@ -172,8 +172,6 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
     def validate_subtotal(self, subtotal):
         if subtotal < 0:
             raise serializers.ValidationError("El subtotal no puede ser negativo")
-        if not subtotal:
-            raise serializers.ValidationError("El subtotal es requerido")
         return subtotal
         
     def validate(self, data):
@@ -186,13 +184,18 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
             )
             if self.instance:
                 query_existente = query_existente.exclude(id=self.instance.id)
-                
             if query_existente.exists():
                 raise serializers.ValidationError({
                     "non_field_errors": "El servicio ya se encuentra registrado en la cita"
                 })
-        return data 
+                
+        # Si es una creación y no se proporcionó subtotal, usar el precio del servicio
+        if not self.instance and 'servicio_id' in data and 'subtotal' not in data:
+            servicio = data['servicio_id']
+            data['subtotal'] = servicio.precio  # Asumiendo que el servicio tiene un campo 'precio'
             
+        return data
+        
     def create(self, validated_data):
         servicioCita = super().create(validated_data)
         self._actualizar_total_cita(servicioCita.cita_id)
@@ -205,7 +208,7 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
         
     def _actualizar_total_cita(self, cita):
         nuevo_total = ServicioCita.objects.filter(cita_id=cita).aggregate(
-            total=models.Sum('subtotal')  
-        )['total'] or 0  
+            total=models.Sum('subtotal')
+        )['total'] or 0
         cita.Total = nuevo_total
         cita.save()
