@@ -5,4 +5,5 @@ urlpatterns = [
     path('liquidaciones/', include('api.urls.liqNovUrls')),
     path('roles/', include('api.urls.rolesUrls')),
     path('usuarios/', include('api.urls.usuariosUrls')),
+    path('auth/', include('api.urls.authUrls')),
 ]
