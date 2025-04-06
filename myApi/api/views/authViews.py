@@ -14,22 +14,36 @@ from ..utils.email_utils import enviar_correo;
 # Vista personalizada para login con JWT
 class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
-    
+
     def post(self, request, *args, **kwargs):
+        data = request.data.copy()  # ✅ Hacemos una copia mutable
+
+        login_input = data.get('username')  # Puede ser correo o username
+
+        # Buscar por correo
+        try:
+            user = Usuario.objects.get(correo=login_input)
+            data['username'] = user.username  # ✅ Sobrescribimos username
+        except Usuario.DoesNotExist:
+            pass  # Se mantiene como está (username real)
+
+        request._full_data = data  # ⚠️ Truco para forzar el nuevo data en la request (opcional si no funciona bien con `super()`)
+
+        # Ejecutar el login original con el nuevo data
         response = super().post(request, *args, **kwargs)
-        
-        # Obtener información básica del usuario para devolver junto con el token
-        username = request.data.get('username')
+
+        # Obtener usuario por username
+        username = data.get('username')
         user = get_object_or_404(Usuario, username=username)
-        
-        # Añadir información básica del usuario a la respuesta
+
+        # Agregar info extra
         response.data['user_id'] = user.id
         response.data['username'] = user.username
         response.data['nombre'] = user.nombre
         response.data['apellido'] = user.apellido
         response.data['rol'] = user.rol_id.nombre if user.rol_id else None
-        
-        # Determinar el tipo de usuario y añadir su ID específico
+
+        # ID de cliente o manicurista
         try:
             if user.rol_id and user.rol_id.nombre.lower() == 'cliente':
                 cliente = Cliente.objects.get(usuario=user)
@@ -39,8 +53,10 @@ class LoginView(TokenObtainPairView):
                 response.data['manicurista_id'] = manicurista.id
         except:
             pass
-            
+
         return response
+
+
 
 # Vista para registro de clientes
 class RegistroClienteView(generics.CreateAPIView):

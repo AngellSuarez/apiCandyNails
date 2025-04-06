@@ -74,6 +74,7 @@ class ClienteSerializer(serializers.ModelSerializer):
     # Salida en GET
     username_out = serializers.SerializerMethodField(read_only=True)
     rol_id_out = serializers.SerializerMethodField(read_only=True)
+    usuario_id = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Cliente
@@ -81,7 +82,7 @@ class ClienteSerializer(serializers.ModelSerializer):
             'username', 'password', 'rol_id',
             'nombre', 'apellido', 'tipo_documento', 'numero_documento',
             'correo', 'celular', 'estado',
-            'username_out', 'rol_id_out'
+            'username_out', 'rol_id_out','usuario_id'
         ]
 
     def get_username_out(self, obj):
@@ -89,6 +90,9 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     def get_rol_id_out(self, obj):
         return obj.usuario.rol_id.id if obj.usuario and obj.usuario.rol_id else None
+    
+    def get_usuario_id(self, obj):
+        return obj.usuario.id if obj.usuario else None
 
     def validate_estado(self, estado):
         estados_validos = [choice[0] for choice in Cliente.ESTADOS_CHOICES]
@@ -197,6 +201,7 @@ class ManicuristaSerializer(serializers.ModelSerializer):
     # Campos para lectura
     username_out = serializers.SerializerMethodField(read_only=True)
     rol_id_out = serializers.SerializerMethodField(read_only=True)
+    usuario_id = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Manicurista
@@ -204,7 +209,7 @@ class ManicuristaSerializer(serializers.ModelSerializer):
             'username', 'password', 'rol_id',
             'nombre', 'apellido', 'tipo_documento', 'numero_documento',
             'correo', 'celular', 'estado', 'fecha_nacimiento', 'fecha_contratacion',
-            'username_out', 'rol_id_out'
+            'username_out', 'rol_id_out','usuario_id'
         ]
 
     def get_username_out(self, obj):
@@ -212,6 +217,10 @@ class ManicuristaSerializer(serializers.ModelSerializer):
 
     def get_rol_id_out(self, obj):
         return obj.usuario.rol_id.id if obj.usuario and obj.usuario.rol_id else None
+    
+    def get_usuario_id(self, obj):
+        return obj.usuario.id if obj.usuario else None
+    
 
     def validate_estado(self, estado):
         estados_validos = [choice[0] for choice in Manicurista.ESTADOS_CHOICES]
