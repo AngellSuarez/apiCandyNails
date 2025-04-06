@@ -171,22 +171,25 @@ class ClienteSerializer(serializers.ModelSerializer):
         return cliente
     
     def update(self, instance, validated_data):
-        usuario = instance.usuario  # Relación OneToOne con Usuario
-    
-    # Campos de Usuario que podrían actualizarse desde el Cliente
-        usuario_fields = ['nombre', 'apellido', 'correo']
+        usuario = instance.usuario
+
+        usuario_fields = ['nombre', 'apellido', 'correo', 'username', 'password']
         for field in usuario_fields:
             if field in validated_data:
-                setattr(usuario, field, validated_data[field])
-    
+                value = validated_data.pop(field)
+                if field == 'password':
+                    usuario.set_password(value)
+                else:
+                    setattr(usuario, field, value)
+
         usuario.save()
 
-    # Actualizar campos propios de Cliente
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-    
+
         instance.save()
         return instance
+
 
         
 ##manicuristas
@@ -301,15 +304,20 @@ class ManicuristaSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         usuario = instance.usuario
 
-        usuario_fields = ['nombre', 'apellido', 'correo']
+        usuario_fields = ['nombre', 'apellido', 'correo', 'username', 'password']
         for field in usuario_fields:
-            if field in validated_data:
-                setattr(usuario, field, validated_data[field])
-    
+          if field in validated_data:
+            value = validated_data.pop(field)
+            if field == 'password':
+                usuario.set_password(value)
+            else:
+                setattr(usuario, field, value)
+
         usuario.save()
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-    
+
         instance.save()
         return instance
+
