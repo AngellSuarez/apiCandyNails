@@ -169,6 +169,25 @@ class ClienteSerializer(serializers.ModelSerializer):
         # Now create the Cliente instance with the usuario relation
         cliente = Cliente.objects.create(usuario=usuario, **validated_data)
         return cliente
+    
+    def update(self, instance, validated_data):
+        usuario = instance.usuario  # Relación OneToOne con Usuario
+    
+    # Campos de Usuario que podrían actualizarse desde el Cliente
+        usuario_fields = ['nombre', 'apellido', 'correo']
+        for field in usuario_fields:
+            if field in validated_data:
+                setattr(usuario, field, validated_data[field])
+    
+        usuario.save()
+
+    # Actualizar campos propios de Cliente
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+    
+        instance.save()
+        return instance
+
         
 ##manicuristas
 class ManicuristaSerializer(serializers.ModelSerializer):
@@ -278,3 +297,19 @@ class ManicuristaSerializer(serializers.ModelSerializer):
         # Now create the Manicurista instance with the usuario relation
         manicurista = Manicurista.objects.create(usuario=usuario, **validated_data)
         return manicurista
+    
+    def update(self, instance, validated_data):
+        usuario = instance.usuario
+
+        usuario_fields = ['nombre', 'apellido', 'correo']
+        for field in usuario_fields:
+            if field in validated_data:
+                setattr(usuario, field, validated_data[field])
+    
+        usuario.save()
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+    
+        instance.save()
+        return instance
