@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from ..models.usuariosModel import Usuario, Cliente, Manicurista
 from ..models.rolesModel import Rol
-from ..serializers.usuariosSerializer import ClienteSerializer
+from ..serializers.usuariosSerializer import ClienteSerializer, ManicuristaSerializer, UsuarioSerializer
 from ..utils.email_utils import enviar_correo;
 
 # Vista personalizada para login con JWT
@@ -93,11 +93,12 @@ class LogoutView(generics.GenericAPIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 # Vista para verificar si el token es válido y devolver información del usuario
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_info(request):
     user = request.user
-    data = {
+    base_data = {
         'id': user.id,
         'username': user.username,
         'nombre': user.nombre,
@@ -105,20 +106,17 @@ def user_info(request):
         'correo': user.correo,
         'rol': user.rol_id.nombre if user.rol_id else None,
     }
-    
-    # Añadir datos específicos según el rol
+
     try:
         if user.rol_id and user.rol_id.nombre.lower() == 'cliente':
-            cliente = Cliente.objects.get(usuario=user)
-            data['cliente_id'] = cliente.id
-            data['tipo_documento'] = cliente.tipo_documento
-            data['numero_documento'] = cliente.numero_documento
-            data['celular'] = cliente.celular
+            cliente = Cliente.objects.select_related('usuario').get(usuario=user)
+            base_data['perfil'] = ClienteSerializer(cliente).data
         elif user.rol_id and user.rol_id.nombre.lower() == 'manicurista':
-            manicurista = Manicurista.objects.get(usuario=user)
-            data['manicurista_id'] = manicurista.id
-            # Añadir campos específicos de manicurista si es necesario
-    except:
-        pass
-    
-    return Response(data)
+            manicurista = Manicurista.objects.select_related('usuario').get(usuario=user)
+            base_data['perfil'] = ManicuristaSerializer(manicurista).data
+        else:
+            base_data['perfil'] = UsuarioSerializer(user).data  # para admin u otros
+    except Exception as e:
+        base_data['perfil'] = {'error': str(e)}
+
+    return Response(base_data)
