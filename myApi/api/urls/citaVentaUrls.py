@@ -5,7 +5,7 @@ from ..views.citaVentaVIew import EstadoCitaViewSet, ServicioViewSet, CitaVentaV
 router = DefaultRouter()
 router.register(r'estados-cita', EstadoCitaViewSet)
 router.register(r'servicios', ServicioViewSet)
-router.register(r'citas-venta', CitaVentaViewSet)
+router.register(r'citas-venta', CitaVentaViewSet, basename='citas-venta')
 router.register(r'servicios-cita', ServicioCitaViewSet)
 
 urlpatterns = [
