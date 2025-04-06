@@ -50,60 +50,57 @@ class NovedadesSerializer(serializers.ModelSerializer):
 
 class LiquidacionSerializer(serializers.ModelSerializer):
     class Meta:
-        models = Liquidacion;
-        fields = '__all__';
-        #fields= ['id','manicurista_id','FechaInicial','TotalGenerado','Comision','Local','FechaFinal']
-        
-        def validate_manicurista(self,manicurista_id):
-            try:
-                Manicurista.objects.get(id=manicurista_id);
-            except Manicurista.DoesNotExist:
-                raise serializers.ValidationError("El manicurista ingresado no existe")
-            if not manicurista_id:
-                raise serializers.ValidationError("El manicurista es requerido");
-            return manicurista_id;
-        
-        def validate(self,data):
-            manicurista_liquidado = Manicurista.objects.get(id=data['manicurista_id']);
-            
-            fecha_inicial = data.get('FechaInicial');
-            fecha_final = data.get('FechaFinal');
-            
-            fecha_inicial_minima = fecha_final - timedelta(days=5); #5 dias antes de la fecha 
-        
-            #fecha final debe ser la fecha actual
-            if fecha_final != date.today():
-                raise serializers.ValidationError("La fecha final debe ser la fecha actual");
-            
-            #fecha final debe ser maximo 5 dias antes de la fecha final
-            if fecha_inicial != fecha_inicial_minima:
-                raise serializers.ValidationError("La fecha inicial debe ser maximo 5 días antes de la fecha actual");
-            
-            #validar que no exista una liquidacion en la fecha de los 5 dias
-            liquidaciones_existentes = Liquidacion.objects.filter(
-                manicurista_id = manicurista_liquidado,
-                fecha_final_filtrada = fecha_final,
-                fecha_inicial_filtrada = fecha_inicial,
-            )
-            
-            if liquidaciones_existentes.exists():
-                ultima_liquidacion = liquidaciones_existentes.order_by("-FechaFinal").first();
-                raise serializers.ValidationError({
-                    "Fecha inicial":f"Ya existe una liquidación para este rango de fechas, la fecha minima permitida es {ultima_liquidacion + timedelta(days=1)}"
-                })
-   
-            #calcular la comision y el local
-            citas_venta = CitaVenta.objects.filter(
-                manicurista_id = manicurista_liquidado,
-                fecha__gte = fecha_inicial,
-                fecha__lte = fecha_final,
-            );
-            total_generado = sum(cita.Total for cita in citas_venta);
-            comision = total_generado * 0.5;
-            local = total_generado * 0.5;
-            
-            data['TotalGenerado'] = total_generado;
-            data['Comision'] = comision;
-            data['Local'] = local;
-            
-            return data;
+        model = Liquidacion
+        fields = '__all__'
+
+    def validate_manicurista_id(self, manicurista_id):
+        if not manicurista_id:
+            raise serializers.ValidationError("El manicurista es requerido")
+        try:
+            Manicurista.objects.get(id=manicurista_id.id)
+        except Manicurista.DoesNotExist:
+            raise serializers.ValidationError("El manicurista ingresado no existe")
+        return manicurista_id
+
+    def validate(self, data):
+        manicurista = data.get('manicurista_id')
+        fecha_inicial = data.get('FechaInicial')
+        fecha_final = data.get('FechaFinal')
+
+        if not (manicurista and fecha_inicial and fecha_final):
+            raise serializers.ValidationError("Debe proporcionar manicurista, fecha inicial y fecha final")
+
+        # Validar que la fecha final sea hoy
+        if fecha_final != date.today():
+            raise serializers.ValidationError({
+                "FechaFinal": "La fecha final debe ser la fecha actual"
+            })
+
+        # Validar que la fecha inicial sea exactamente 5 días antes
+        if fecha_inicial != fecha_final - timedelta(days=5):
+            raise serializers.ValidationError({
+                "FechaInicial": f"La fecha inicial debe ser exactamente 5 días antes de la fecha final ({fecha_final - timedelta(days=5)})"
+            })
+
+        # Verificar que no exista ya una liquidación en ese rango de fechas
+        liquidaciones_existentes = Liquidacion.objects.filter(
+            manicurista_id=manicurista,
+            FechaInicial=fecha_inicial,
+            FechaFinal=fecha_final
+        )
+        if liquidaciones_existentes.exists():
+            raise serializers.ValidationError("Ya existe una liquidación para este rango de fechas")
+
+        # Calcular el total generado en ese rango por el manicurista
+        citas_venta = CitaVenta.objects.filter(
+            manicurista_id=manicurista,
+            Fecha__gte=fecha_inicial,
+            Fecha__lte=fecha_final
+        )
+
+        total_generado = sum(cita.Total for cita in citas_venta)
+        data['TotalGenerado'] = total_generado
+        data['Comision'] = total_generado * 0.5
+        data['Local'] = total_generado * 0.5
+
+        return data
