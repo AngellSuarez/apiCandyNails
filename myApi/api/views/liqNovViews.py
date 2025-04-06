@@ -5,6 +5,7 @@ from ..serializers.liquidacionHorarioSerializer import NovedadesSerializer, Liqu
 
 class NovedadesViewSet(viewsets.ModelViewSet):
     serializer_class = NovedadesSerializer
+    queryset = Novedades.objects.all()
 
     def get_queryset(self):
         manicurista_id = self.request.query_params.get('manicurista_id')
@@ -14,6 +15,7 @@ class NovedadesViewSet(viewsets.ModelViewSet):
 
 class LiquidacionViewSet(viewsets.ModelViewSet):
     serializer_class = LiquidacionSerializer
+    queryset = Liquidacion.objects.all()
 
     def get_queryset(self):
         manicurista_id = self.request.query_params.get('manicurista_id')

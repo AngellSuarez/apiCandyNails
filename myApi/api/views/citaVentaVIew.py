@@ -29,6 +29,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
 
 class CitaVentaViewSet(viewsets.ModelViewSet):
     serializer_class = CitaVentaSerializer
+    queryset = CitaVenta.objects.all()
 
     def get_queryset(self):
         queryset = CitaVenta.objects.all()
