@@ -151,7 +151,6 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServicioCita
         fields = '__all__'
-        depth = 1
         
     def validate_cita_id(self, cita_id):
         try:
