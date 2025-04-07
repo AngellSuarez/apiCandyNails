@@ -17,7 +17,7 @@ class NovedadesSerializer(serializers.ModelSerializer):
             'Fecha',
             'HoraEntrada',
             'HoraSalida',
-            'Descripcion',
+            'Motivo',
             'manicurista_nombre',
         ]
 
