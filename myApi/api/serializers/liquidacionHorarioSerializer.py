@@ -7,10 +7,22 @@ from ..models.citaventaModel import CitaVenta;
 
 class NovedadesSerializer(serializers.ModelSerializer):
     manicurista_id = serializers.PrimaryKeyRelatedField(queryset=Manicurista.objects.all())
+    manicurista_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Novedades
-        fields = '__all__'
+        fields = [
+            'id',
+            'manicurista_id',
+            'Fecha',
+            'HoraEntrada',
+            'HoraSalida',
+            'Descripcion',
+            'manicurista_nombre',
+        ]
+
+    def get_manicurista_nombre(self, obj):
+        return f"{obj.manicurista_id.nombre} {obj.manicurista_id.apellido}"
 
     def validate_Fecha(self, value):
         max_fecha = date.today() + timedelta(days=7)
@@ -19,34 +31,42 @@ class NovedadesSerializer(serializers.ModelSerializer):
         return value
 
     def validate_HoraEntrada(self, value):
-        hora_entrada_minima = time(8, 0)
-        hora_salida_maxima = time(18, 0)
-        if value < hora_entrada_minima or value > hora_salida_maxima:
+        if value < time(8, 0) or value > time(18, 0):
             raise serializers.ValidationError("La hora de entrada debe estar entre las 8:00 AM y las 6:00 PM.")
         return value
 
     def validate_HoraSalida(self, value):
-        hora_entrada_minima = time(8, 0)
-        hora_salida_maxima = time(18, 0)
-        if value < hora_entrada_minima or value > hora_salida_maxima:
+        if value < time(8, 0) or value > time(18, 0):
             raise serializers.ValidationError("La hora de salida debe estar entre las 8:00 AM y las 6:00 PM.")
         return value
 
     def validate(self, data):
         hora_entrada = data.get("HoraEntrada")
         hora_salida = data.get("HoraSalida")
-        if hora_entrada and hora_salida:
-            if hora_salida <= hora_entrada:
-                raise serializers.ValidationError("La hora de salida debe ser posterior a la hora de entrada.")
+        if hora_entrada and hora_salida and hora_salida <= hora_entrada:
+            raise serializers.ValidationError("La hora de salida debe ser posterior a la hora de entrada.")
         return data
 
 
 class LiquidacionSerializer(serializers.ModelSerializer):
     manicurista_id = serializers.PrimaryKeyRelatedField(queryset=Manicurista.objects.all())
+    manicurista_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Liquidacion
-        fields = '__all__'
+        fields = [
+            'id',
+            'manicurista_id',
+            'FechaInicial',
+            'FechaFinal',
+            'TotalGenerado',
+            'Comision',
+            'Local',
+            'manicurista_nombre',
+        ]
+
+    def get_manicurista_nombre(self, obj):
+        return f"{obj.manicurista_id.nombre} {obj.manicurista_id.apellido}"
 
     def validate_manicurista_id(self, manicurista_id):
         if not manicurista_id:

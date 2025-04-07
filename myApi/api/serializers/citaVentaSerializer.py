@@ -92,43 +92,61 @@ class CitaVentaSerializer(serializers.ModelSerializer):
     manicurista_id = serializers.PrimaryKeyRelatedField(queryset=Manicurista.objects.all())
     estado_id = serializers.PrimaryKeyRelatedField(queryset=EstadoCita.objects.all())
 
+    cliente_nombre = serializers.SerializerMethodField()
+    manicurista_nombre = serializers.SerializerMethodField()
+    estado_nombre = serializers.SerializerMethodField()
+
     class Meta:
         model = CitaVenta
-        fields = '__all__'
+        fields = [
+            'id',
+            'cliente_id',
+            'cliente_nombre',
+            'manicurista_id',
+            'manicurista_nombre',
+            'estado_id',
+            'estado_nombre',
+            'Fecha',
+            'Hora',
+            'Descripcion',
+            'Total',
+        ]
 
-    def validate_Total(self, total):
-        if total < 0:
-            raise serializers.ValidationError("El total no puede ser negativo")
-        return total
+    def get_cliente_nombre(self, obj):
+        return f"{obj.cliente_id.nombre} {obj.cliente_id.apellido}"
 
-    def validate(self, data):
-        if data['Fecha'] < date.today():
-            raise serializers.ValidationError({"Fecha": "La fecha no puede ser menor a la fecha actual"})
+    def get_manicurista_nombre(self, obj):
+        return f"{obj.manicurista_id.nombre} {obj.manicurista_id.apellido}"
 
-        hora_apertura = time(8, 0)
-        hora_cierre = time(18, 0)
-        if data['Hora'] < hora_apertura or data['Hora'] > hora_cierre:
-            raise serializers.ValidationError({"Hora": "La hora debe estar entre las 8:00 y las 18:00"})
-
-        if 'manicurista_id' in data and 'Fecha' in data and 'Hora' in data:
-            citas_existentes = CitaVenta.objects.filter(
-                manicurista_id=data['manicurista_id'],
-                Fecha=data['Fecha'],
-                Hora=data['Hora']
-            )
-            if self.instance:
-                citas_existentes = citas_existentes.exclude(id=self.instance.id)
-            if citas_existentes.exists():
-                raise serializers.ValidationError({
-                    "non_field_errors": "El manicurista ya tiene una cita agendada para esa fecha y hora"
-                })
-        return data
+    def get_estado_nombre(self, obj):
+        return obj.estado_id.Estado
 
 class ServicioCitaSerializer(serializers.ModelSerializer):
+    servicio_nombre = serializers.SerializerMethodField()
+    servicio_precio = serializers.SerializerMethodField()
+    servicio_imagen = serializers.SerializerMethodField()
+
     class Meta:
         model = ServicioCita
-        fields = '__all__'
-        
+        fields = [
+            'id',
+            'cita_id',
+            'servicio_id',
+            'subtotal',
+            'servicio_nombre',
+            'servicio_precio',
+            'servicio_imagen',
+        ]
+
+    def get_servicio_nombre(self, obj):
+        return obj.servicio_id.nombre
+
+    def get_servicio_precio(self, obj):
+        return obj.servicio_id.precio
+
+    def get_servicio_imagen(self, obj):
+        return obj.servicio_id.imagen.url if obj.servicio_id.imagen else None
+
     def validate_cita_id(self, cita_id):
         try:
             CitaVenta.objects.get(id=cita_id.id)
@@ -137,7 +155,7 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
         if not cita_id:
             raise serializers.ValidationError("La cita es requerida")
         return cita_id
-        
+
     def validate_servicio_id(self, servicio_id):
         try:
             Servicio.objects.get(id=servicio_id.id)
@@ -146,16 +164,14 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
         if not servicio_id:
             raise serializers.ValidationError("El servicio es requerido")
         return servicio_id
-        
+
     def validate_subtotal(self, subtotal):
         if subtotal < 0:
             raise serializers.ValidationError("El subtotal no puede ser negativo")
         return subtotal
-        
+
     def validate(self, data):
-        # Validar que el servicio no este ya en la cita
         if 'cita_id' in data and 'servicio_id' in data:
-            # Eliminar la instancia actual de la consulta al momento de actualizar
             query_existente = ServicioCita.objects.filter(
                 cita_id=data['cita_id'],
                 servicio_id=data['servicio_id'],
@@ -166,24 +182,23 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "non_field_errors": "El servicio ya se encuentra registrado en la cita"
                 })
-                
-        # Si es una creación y no se proporcionó subtotal, usar el precio del servicio
+
         if not self.instance and 'servicio_id' in data and 'subtotal' not in data:
             servicio = data['servicio_id']
-            data['subtotal'] = servicio.precio  # Asumiendo que el servicio tiene un campo 'precio'
-            
+            data['subtotal'] = servicio.precio
+
         return data
-        
+
     def create(self, validated_data):
         servicioCita = super().create(validated_data)
         self._actualizar_total_cita(servicioCita.cita_id)
         return servicioCita
-        
+
     def update(self, instance, validated_data):
         servicioCita = super().update(instance, validated_data)
         self._actualizar_total_cita(servicioCita.cita_id)
         return servicioCita
-        
+
     def _actualizar_total_cita(self, cita):
         nuevo_total = ServicioCita.objects.filter(cita_id=cita).aggregate(
             total=models.Sum('subtotal')
