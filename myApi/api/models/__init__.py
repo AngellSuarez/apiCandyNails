@@ -23,3 +23,5 @@ from .citaventaModel import EstadoCita, CitaVenta, ServicioCita
 
 # Modelos relacionados con liquidaciones y horarios
 from .liqHorModel import Novedades, Liquidacion
+
+from .codigo_recuperacion import CodigoRecuperacion

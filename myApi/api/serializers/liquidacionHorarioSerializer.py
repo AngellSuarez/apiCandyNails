@@ -9,6 +9,7 @@ class NovedadesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Novedades
         fields = '__all__'
+        depth = 1
 
     # Validar la fecha
     def validate_Fecha(self, value):
@@ -52,6 +53,7 @@ class LiquidacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Liquidacion
         fields = '__all__'
+        depth = 1
 
     def validate_manicurista_id(self, manicurista_id):
         if not manicurista_id:

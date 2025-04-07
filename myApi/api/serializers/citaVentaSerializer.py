@@ -91,6 +91,7 @@ class CitaVentaSerializer(serializers.ModelSerializer):
     class Meta:
         model = CitaVenta
         fields = '__all__'
+        depth = 1
         
     def validate_manicurista_id(self, manicurista_id):
         try:
@@ -150,6 +151,7 @@ class ServicioCitaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServicioCita
         fields = '__all__'
+        depth = 1
         
     def validate_cita_id(self, cita_id):
         try:
