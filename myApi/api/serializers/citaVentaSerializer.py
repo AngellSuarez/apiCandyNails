@@ -88,59 +88,36 @@ class ServicioSerializer(serializers.ModelSerializer):
 
 
 class CitaVentaSerializer(serializers.ModelSerializer):
+    cliente_id = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all())
+    manicurista_id = serializers.PrimaryKeyRelatedField(queryset=Manicurista.objects.all())
+    estado_id = serializers.PrimaryKeyRelatedField(queryset=EstadoCita.objects.all())
+
     class Meta:
         model = CitaVenta
         fields = '__all__'
-        depth = 1
-        
-    def validate_manicurista_id(self, manicurista_id):
-        try:
-            Manicurista.objects.get(usuario=manicurista_id)
-        except Manicurista.DoesNotExist:
-            raise serializers.ValidationError("El manicurista no existe")
-        if not manicurista_id:
-            raise serializers.ValidationError("El manicurista es requerido")
-        return manicurista_id
-        
-    def validate_cliente_id(self, cliente_id):
-        try:
-            Cliente.objects.get(usuario=cliente_id)
-        except Cliente.DoesNotExist:
-            raise serializers.ValidationError("El cliente no existe")
-        if not cliente_id:
-            raise serializers.ValidationError("El cliente es requerido")
-        return cliente_id
-        
+
     def validate_Total(self, total):
         if total < 0:
             raise serializers.ValidationError("El total no puede ser negativo")
-        if not total:
-            raise serializers.ValidationError("El total es requerido")
         return total
-        
+
     def validate(self, data):
-        # Validación de fecha
-        if 'Fecha' in data:
-            if data['Fecha'] < date.today():
-                raise serializers.ValidationError({"Fecha": "La fecha no puede ser menor a la fecha actual"})
-                
-        # Validación de hora
-        if 'Hora' in data:
-            hora_apertura = time(8, 0)
-            hora_cierre = time(18, 0)
-            if data['Hora'] < hora_apertura or data['Hora'] > hora_cierre:
-                raise serializers.ValidationError({"Hora": "La hora debe estar entre las 8:00 y las 18:00"})
-                
-        # Verificar si el manicurista se encuentra disponible
-        if all(k in data for k in ('manicurista_id', 'Fecha', 'Hora')):
+        if data['Fecha'] < date.today():
+            raise serializers.ValidationError({"Fecha": "La fecha no puede ser menor a la fecha actual"})
+
+        hora_apertura = time(8, 0)
+        hora_cierre = time(18, 0)
+        if data['Hora'] < hora_apertura or data['Hora'] > hora_cierre:
+            raise serializers.ValidationError({"Hora": "La hora debe estar entre las 8:00 y las 18:00"})
+
+        if 'manicurista_id' in data and 'Fecha' in data and 'Hora' in data:
             citas_existentes = CitaVenta.objects.filter(
                 manicurista_id=data['manicurista_id'],
                 Fecha=data['Fecha'],
-                Hora=data['Hora'], 
+                Hora=data['Hora']
             )
             if self.instance:
                 citas_existentes = citas_existentes.exclude(id=self.instance.id)
-                
             if citas_existentes.exists():
                 raise serializers.ValidationError({
                     "non_field_errors": "El manicurista ya tiene una cita agendada para esa fecha y hora"
