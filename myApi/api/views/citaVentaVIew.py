@@ -88,6 +88,12 @@ class CitaVentaViewSet(viewsets.ModelViewSet):
 class ServicioCitaViewSet(viewsets.ModelViewSet):
     queryset = ServicioCita.objects.all()
     serializer_class = ServicioCitaSerializer
+    
+    def get_queryset(self):
+        cita_id = self.request.query_params.get('cita_id')
+        if cita_id:
+            return ServicioCita.objects.filter(cita_id=cita_id)
+        return ServicioCita.objects.all()
 
     def create(self, request, *args, **kwargs):
         # Si es un solo objeto
