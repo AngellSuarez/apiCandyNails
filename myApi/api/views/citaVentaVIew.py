@@ -44,11 +44,26 @@ class CitaVentaViewSet(viewsets.ModelViewSet):
         return queryset
 
     def destroy(self, request, *args, **kwargs):
-        cita_venta = self.get_object()
-        estado_cancelado = EstadoCita.objects.get(estado='cancelada')
-        cita_venta.estado = estado_cancelado
-        cita_venta.save()
-        return Response({"message": "Cita de venta cancelada correctamente"}, status=status.HTTP_200_OK)
+        try:
+            cita_venta = self.get_object()
+            estado_cancelado = EstadoCita.objects.get(Estado='cancelada')
+            cita_venta.estado_id = estado_cancelado
+            cita_venta.save()
+            return Response(
+                {"message": "Cita de venta cancelada correctamente"},
+                status=status.HTTP_200_OK
+            )
+        except EstadoCita.DoesNotExist:
+            return Response(
+                {"error": "El estado 'cancelada' no existe."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                {"error": f"Error al cancelar la cita: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=['patch'])
     def cambiar_estado(self, request, pk=None):
